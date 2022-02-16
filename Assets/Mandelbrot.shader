@@ -6,9 +6,10 @@ Shader "Explorer/NewImageEffectShader"
         _Area("Area", vector) = (0, 0, 4, 4)
         _MaxIter("Iterations", range(4, 1000)) = 255
         _Angle("Angle",range(-3.1415, 3.1415)) = 0
-        _Color("Color", range(0,1)) = .5
+        _Color("Color", range(0, 1)) = .5
         _Repeat("Repeat", float) = 1
         _Speed("Speed", float) = 1
+        _Symmetry("Symmetry", range(0, 1)) = 1
     }
     SubShader
     {
@@ -44,7 +45,7 @@ Shader "Explorer/NewImageEffectShader"
             }
 
             float4 _Area;
-            float _Angle, _MaxIter, _Color, _Repeat, _Speed;
+            float _Angle, _MaxIter, _Color, _Repeat, _Speed, _Symmetry;
             sampler2D _MainTex;
 
             float2 rot(float2 p, float2 pivot, float a)
@@ -60,7 +61,13 @@ Shader "Explorer/NewImageEffectShader"
             
             fixed4 frag (v2f i) : SV_Target
             {
-                float2 c = _Area.xy + (i.uv - .5) * _Area.zw;
+                float2 uv = i.uv - .5;
+                uv = abs(uv);
+                uv = rot(uv, 0, .25 * 3.1415);
+                uv = abs(uv);
+                uv = lerp(i.uv - .5, uv, _Symmetry);
+                
+                float2 c = _Area.xy + uv * _Area.zw;
                 c = rot(c, _Area.xy, _Angle);
 
                 float r = 20; // escape radius
@@ -69,7 +76,8 @@ Shader "Explorer/NewImageEffectShader"
                 float iter;
                 for (iter = 0; iter < _MaxIter; iter++)
                 {
-                    zPrevious = z;
+                    //zPrevious = z;
+                    zPrevious = rot(z, 0, _Time.y);
                     z = float2(z.x *z.x - z.y * z.y, 2 * z.x * z.y) + c;
                     //if (length(z) > r) break;
                     if (dot(z, zPrevious) > r2) break;
@@ -90,7 +98,7 @@ Shader "Explorer/NewImageEffectShader"
                 float angle = atan2(z.x, z.y);
                 col *= smoothstep(3, 0, fracIter); // iter -=fractIter comment this ; -400 dans reglage unity
 
-                col *= 1 + sin(angle*2) * .2;
+                col *= 1 + sin(angle * 2 + _Time.y * 4) * .2;
 
 
                 return col;
